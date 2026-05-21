@@ -3,6 +3,8 @@ import { Command } from "commander";
 import * as E from "fp-ts/Either";
 
 import { version } from "../package.json";
+import { registerConfigCommand } from "./commands/config";
+import { registerGraphqlCommand } from "./commands/graphql";
 import { test } from "./commands/test";
 import { handleError } from "./handlers/error";
 
@@ -22,6 +24,9 @@ const CLI_AFTER_ALL_TXT = `\nFor more help, head on to ${accent(
 )}`;
 
 const program = new Command();
+
+registerConfigCommand(program);
+registerGraphqlCommand(program);
 
 program
   .name("hopp")
@@ -104,5 +109,13 @@ program
 export const cli = async (args: string[]) => {
   try {
     await program.parseAsync(args);
-  } catch (e) {}
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error(e.message);
+    } else {
+      console.error(String(e));
+    }
+
+    process.exitCode = 1;
+  }
 };

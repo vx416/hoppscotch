@@ -11,6 +11,7 @@ import { TestCmdEnvironmentOptions, TestCmdOptions } from "../types/commands";
 import { error } from "../types/errors";
 import { HoppEnvs } from "../types/request";
 import { isHoppCLIError } from "../utils/checks";
+import { resolveCliRuntimeConfig } from "../utils/config";
 import {
   collectionsRunner,
   collectionsRunnerExit,
@@ -41,14 +42,27 @@ export const test = (pathOrId: string, options: TestCmdOptions) => async () => {
 
     const resolvedDelay = delay ? parseDelayOption(delay) : 0;
 
+    const resolvedRuntimeOptions = await resolveCliRuntimeConfig({
+      token: options.token,
+      server: options.server,
+    });
+
     const envs = env
-      ? await parseEnvsData(options as TestCmdEnvironmentOptions)
+      ? await parseEnvsData({
+          ...(options as TestCmdEnvironmentOptions),
+          token: resolvedRuntimeOptions.token,
+          server: resolvedRuntimeOptions.server,
+        })
       : <HoppEnvs>{ global: [], selected: [] };
 
     let parsedIterationData: unknown[] | null = null;
     let transformedIterationData: IterationDataItem[][] | undefined;
 
-    const collections = await parseCollectionData(pathOrId, options);
+    const collections = await parseCollectionData(pathOrId, {
+      ...options,
+      token: resolvedRuntimeOptions.token,
+      server: resolvedRuntimeOptions.server,
+    });
 
     if (iterationData) {
       // Check file existence
