@@ -4,10 +4,16 @@ import * as E from "fp-ts/Either";
 
 import { version } from "../package.json";
 import { registerConfigCommand } from "./commands/config";
+import { registerCollectionCommand } from "./commands/collection";
 import { registerEnvCommand } from "./commands/env";
 import { registerGraphqlCommand } from "./commands/graphql";
+import { registerRequestCommand } from "./commands/request";
 import { test } from "./commands/test";
 import { handleError } from "./handlers/error";
+import {
+  formatCliConfigInitResult,
+  runCliConfigInit,
+} from "./utils/config-init";
 
 const accent = chalk.greenBright;
 
@@ -27,8 +33,10 @@ const CLI_AFTER_ALL_TXT = `\nFor more help, head on to ${accent(
 const program = new Command();
 
 registerConfigCommand(program);
+registerCollectionCommand(program);
 registerEnvCommand(program);
 registerGraphqlCommand(program);
+registerRequestCommand(program);
 
 program
   .name("hopp")
@@ -54,6 +62,14 @@ program.exitOverride().configureOutput({
  * * CLI Commands
  */
 program
+  .command("init")
+  .description("Interactively initialize the local CLI config")
+  .action(async () => {
+    const { next } = await runCliConfigInit();
+    console.log(JSON.stringify(formatCliConfigInitResult(next), null, 2));
+  });
+
+program
   .command("test")
   .argument(
     "<file_path_or_id>",
@@ -62,6 +78,20 @@ program
   .option(
     "-e, --env <file_path_or_id>",
     "path to an environment variables json file or environment ID from a workspace"
+  )
+  .option(
+    "-r, --request <request_target>",
+    "run only the specified request within the collection; can be repeated",
+    (value, previous: string[] = []) => [...previous, value],
+    []
+  )
+  .option(
+    "--request-map <file_path_or_json>",
+    "JSON string or path to a JSON file that maps request names to request bodies"
+  )
+  .option(
+    "--json",
+    "print machine-readable JSON output with each executed request response"
   )
   .option(
     "-d, --delay <delay_in_ms>",

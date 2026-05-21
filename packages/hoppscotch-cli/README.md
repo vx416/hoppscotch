@@ -5,6 +5,8 @@ A CLI to run Hoppscotch Test Scripts in CI environments.
 ### **Commands:**
 
 - `hopp test [options] [file]`: testing hoppscotch collection.json file
+- `hopp init`: interactively initialize local CLI config
+- `hopp config init`: same interactive config flow under the config group
 
 ### **Usage:**
 
@@ -84,9 +86,38 @@ hopp [options or commands] arguments
 
       For every iteration the values will be replaced with the respective keys in the environment. For iteration 1 the value1,value2,value3 will be replaced and for iteration 2 value4,value5,value6 will be replaced and so on.
 
+    ##### `--request-map <file_path_or_json>`
+
+    - Accepts a JSON array or a path to a JSON file in the below format:
+
+      ```json
+      [
+        {
+          "request_name": "login",
+          "request_body": {
+            "username": "alice",
+            "password": "secret"
+          }
+        }
+      ]
+      ```
+
+    - The CLI will match each `request_name` against the saved request name and temporarily override that request's body for the test run.
+
     #### `--legacy-sandbox`
 
     - Opt out from the experimental scripting sandbox.
+
+4.  #### **`hopp init` / `hopp config init`**
+
+    - Prompts for local CLI config keys one by one.
+    - Press `Enter` to keep the current value for a key.
+    - Supported keys:
+      - `server`
+      - `token`
+      - `refreshToken`
+      - `teamId`
+      - `workspaceId`
 
 ## Versioning
 

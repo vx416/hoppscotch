@@ -6,12 +6,14 @@ import {
   unsetCliConfigKey,
   updateCliConfig,
 } from "../utils/config";
+import { formatCliConfigInitResult, runCliConfigInit } from "../utils/config-init";
 import { HoppscotchCliConfigKey } from "../types/config";
 
 const validConfigKeys = new Set<HoppscotchCliConfigKey>([
   "server",
   "token",
   "refreshToken",
+  "teamId",
   "workspaceId",
   "collectionId",
   "environmentId",
@@ -31,6 +33,14 @@ export const registerConfigCommand = (program: Command) => {
   const configCommand = program
     .command("config")
     .description("Manage local Hoppscotch CLI configuration");
+
+  configCommand
+    .command("init")
+    .description("Interactively initialize the local CLI config")
+    .action(async () => {
+      const { next } = await runCliConfigInit();
+      console.log(JSON.stringify(formatCliConfigInitResult(next), null, 2));
+    });
 
   configCommand
     .command("show")
