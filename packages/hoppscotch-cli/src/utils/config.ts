@@ -27,10 +27,29 @@ export const normalizeCliConfig = (
 ): HoppscotchCliConfig => ({
   server: config?.server,
   token: config?.token,
+  refreshToken: config?.refreshToken,
   workspaceId: config?.workspaceId,
   collectionId: config?.collectionId,
   environmentId: config?.environmentId,
 });
+
+const mergeDefinedConfigValues = (
+  base: HoppscotchCliConfig,
+  overrides: Partial<HoppscotchCliConfig>
+) => {
+  const next: HoppscotchCliConfig = { ...base };
+
+  for (const [key, value] of Object.entries(overrides) as [
+    HoppscotchCliConfigKey,
+    HoppscotchCliConfig[HoppscotchCliConfigKey],
+  ][]) {
+    if (value !== undefined) {
+      next[key] = value;
+    }
+  }
+
+  return next;
+};
 
 export const readCliConfig = async (
   configPath: string = getCliConfigPath()
@@ -63,10 +82,7 @@ export const updateCliConfig = async (
   configPath: string = getCliConfigPath()
 ) => {
   const current = await readCliConfig(configPath);
-  const next = normalizeCliConfig({
-    ...current,
-    ...update,
-  });
+  const next = mergeDefinedConfigValues(current, update);
 
   await writeCliConfig(next, configPath);
   return next;
@@ -91,13 +107,11 @@ export const resolveCliRuntimeConfig = async (
   configPath: string = getCliConfigPath()
 ) => {
   const saved = await readCliConfig(configPath);
-  return normalizeCliConfig({
-    ...saved,
-    ...overrides,
-  });
+  return mergeDefinedConfigValues(saved, overrides);
 };
 
 export const formatCliConfigForDisplay = (config: HoppscotchCliConfig) => ({
   ...config,
   token: maskSecret(config.token),
+  refreshToken: maskSecret(config.refreshToken),
 });

@@ -61,6 +61,7 @@ describe("config utils", () => {
       {
         server: "https://saved.example.com/graphql",
         token: "pat-saved",
+        refreshToken: "ref-saved",
       },
       configPath
     );
@@ -75,6 +76,38 @@ describe("config utils", () => {
     ).resolves.toEqual({
       server: "https://saved.example.com/graphql",
       token: "pat-override",
+      refreshToken: "ref-saved",
+    });
+  });
+
+  test("ignores undefined runtime overrides", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hopp-cli-config-"));
+    const configPath = path.join(dir, "cli.json");
+
+    await writeCliConfig(
+      {
+        server: "https://saved.example.com/graphql",
+        token: "pat-saved",
+        refreshToken: "ref-saved",
+      },
+      configPath
+    );
+
+    await expect(
+      resolveCliRuntimeConfig(
+        {
+          server: undefined,
+          token: undefined,
+        },
+        configPath
+      )
+    ).resolves.toEqual({
+      server: "https://saved.example.com/graphql",
+      token: "pat-saved",
+      refreshToken: "ref-saved",
+      workspaceId: undefined,
+      collectionId: undefined,
+      environmentId: undefined,
     });
   });
 
@@ -101,10 +134,12 @@ describe("config utils", () => {
       formatCliConfigForDisplay({
         server: "https://saved.example.com/graphql",
         token: "pat-1234567890",
+        refreshToken: "ref-1234567890",
       })
     ).toEqual({
       server: "https://saved.example.com/graphql",
       token: "pat-…7890",
+      refreshToken: "ref-…7890",
     });
   });
 
@@ -129,6 +164,36 @@ describe("config utils", () => {
     ).resolves.toEqual({
       server: "https://saved.example.com/graphql",
       token: "pat-override",
+    });
+  });
+
+  test("ignores undefined update values when merging config", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hopp-cli-config-"));
+    const configPath = path.join(dir, "cli.json");
+
+    await writeCliConfig(
+      {
+        server: "https://saved.example.com/graphql",
+        token: "pat-saved",
+      },
+      configPath
+    );
+
+    await expect(
+      updateCliConfig(
+        {
+          server: undefined,
+          token: "pat-updated",
+        },
+        configPath
+      )
+    ).resolves.toEqual({
+      server: "https://saved.example.com/graphql",
+      token: "pat-updated",
+      refreshToken: undefined,
+      workspaceId: undefined,
+      collectionId: undefined,
+      environmentId: undefined,
     });
   });
 });

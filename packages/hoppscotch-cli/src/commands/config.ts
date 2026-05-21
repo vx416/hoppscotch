@@ -11,6 +11,7 @@ import { HoppscotchCliConfigKey } from "../types/config";
 const validConfigKeys = new Set<HoppscotchCliConfigKey>([
   "server",
   "token",
+  "refreshToken",
   "workspaceId",
   "collectionId",
   "environmentId",
