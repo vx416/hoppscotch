@@ -19,6 +19,7 @@ import { HoppCLIError, error } from "../types/errors";
 import {
   HoppEnvs,
   ProcessRequestParams,
+  ProcessRequestResult,
   RequestReport,
 } from "../types/request";
 import { RequestMetrics } from "../types/response";
@@ -230,13 +231,14 @@ const getRequest = {
 export const processRequest =
   (
     params: ProcessRequestParams
-  ): T.Task<{ envs: HoppEnvs; report: RequestReport }> =>
+  ): T.Task<ProcessRequestResult> =>
   async () => {
     const {
       envs,
       path,
       request,
       delay,
+      silent,
       legacySandbox,
       collectionVariables,
       inheritedPreRequestScripts = [],
@@ -247,6 +249,16 @@ export const processRequest =
     const result = {
       envs: <HoppEnvs>envs,
       report: <RequestReport>{},
+      response: <RequestRunnerResponse>{
+        endpoint: "",
+        method: "GET",
+        headers: [],
+        status: 400,
+        statusText: "",
+        responseTime: 0,
+        body: Object(null),
+        duration: 0,
+      },
     };
 
     // Initial value for current request's report with default values for properties.
@@ -283,7 +295,7 @@ export const processRequest =
       inheritedPreRequestScripts
     )();
     if (E.isLeft(preRequestRes)) {
-      printPreRequestRunner.fail();
+      if (!silent) printPreRequestRunner.fail();
 
       // Updating report for errors & current result
       report.errors.push(preRequestRes.left);
@@ -298,7 +310,7 @@ export const processRequest =
     // Creating request-config for request-runner.
     const requestConfig = createRequest(effectiveRequest);
 
-    printRequestRunner.start(requestConfig);
+    if (!silent) printRequestRunner.start(requestConfig);
 
     // Default value for request-runner's response.
     let _requestRunnerRes: RequestRunnerResponse = {
@@ -322,12 +334,13 @@ export const processRequest =
       // Ensure, the CLI fails with a non-zero exit code if there are any errors
       report.result = false;
 
-      printRequestRunner.fail();
+      if (!silent) printRequestRunner.fail();
     } else {
       _requestRunnerRes = requestRunnerRes.right;
       report.duration.request = _requestRunnerRes.duration;
-      printRequestRunner.success(_requestRunnerRes);
+      if (!silent) printRequestRunner.success(_requestRunnerRes);
     }
+    result.response = _requestRunnerRes;
 
     const testScriptParams = getTestScriptParams(
       _requestRunnerRes,
@@ -340,7 +353,7 @@ export const processRequest =
     // Executing test-runner.
     const testRunnerRes = await testRunner(testScriptParams)();
     if (E.isLeft(testRunnerRes)) {
-      printTestRunner.fail();
+      if (!silent) printTestRunner.fail();
 
       // Updating report with current errors & result.
       report.errors.push(testRunnerRes.left);
@@ -388,7 +401,7 @@ export const processRequest =
       result.envs = envs;
 
       // Printing tests-report, when test-runner executes successfully.
-      printTestRunner.success(testsReport, duration);
+      if (!silent) printTestRunner.success(testsReport, duration);
     }
 
     result.report = report;

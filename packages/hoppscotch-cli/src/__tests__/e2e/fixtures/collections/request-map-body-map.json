@@ -1,0 +1,16 @@
+[
+  {
+    "request_name": "first",
+    "request_body": {
+      "request": "first",
+      "payload": "alpha"
+    }
+  },
+  {
+    "request_name": "second",
+    "request_body": {
+      "request": "second",
+      "payload": "beta"
+    }
+  }
+]

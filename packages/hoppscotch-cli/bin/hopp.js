@@ -43,19 +43,26 @@ if (!semver.satisfies(currentNodeVersion, requiredNodeVersionRange)) {
 // Dynamically importing the module after the Node.js version check prevents errors due to unrecognized APIs in older Node.js versions
 const { cli } = await import("../dist/index.js");
 
-// As per isolated-vm documentation, we need to supply `--no-node-snapshot` for node >= 20
-// src: https://github.com/laverdet/isolated-vm?tab=readme-ov-file#requirements
-if (!process.execArgv.includes("--no-node-snapshot")) {
-  const argCopy = cloneDeep(process.argv);
-
-  // Replace first argument with --no-node-snapshot
-  // We can get argv[0] from process.argv0
-  argCopy[0] = "--no-node-snapshot";
-
-  const result = spawnSync(process.argv0, argCopy, { stdio: "inherit" });
-
-  // Exit with the same status code as the spawned process
-  process.exit(result.status ?? 0);
+// `gen-skill` does not depend on isolated-vm and is safer to execute directly.
+if (process.argv.slice(2).includes("gen-skill")) {
+  const argvCopy = cloneDeep(process.argv);
+  argvCopy[1] = fileURLToPath(new URL("../dist/index.js", import.meta.url));
+  cli(argvCopy);
 } else {
-  cli(process.argv);
+  // As per isolated-vm documentation, we need to supply `--no-node-snapshot` for node >= 20
+  // src: https://github.com/laverdet/isolated-vm?tab=readme-ov-file#requirements
+  if (!process.execArgv.includes("--no-node-snapshot")) {
+    const argCopy = cloneDeep(process.argv);
+
+    // Replace first argument with --no-node-snapshot
+    // We can get argv[0] from process.argv0
+    argCopy[0] = "--no-node-snapshot";
+
+    const result = spawnSync(process.argv0, argCopy, { stdio: "inherit" });
+
+    // Exit with the same status code as the spawned process
+    process.exit(result.status ?? 0);
+  } else {
+    cli(process.argv);
+  }
 }

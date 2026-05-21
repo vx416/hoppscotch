@@ -185,6 +185,11 @@ devenv.local.nix
 
 # AI Coding Assistants
 .claude/
+.codex/
 .cursor/
 .aider*
 .windsurfrules
+/packages/hoppscotch-cli/.claude/
+!/packages/hoppscotch-cli/.claude/
+!/packages/hoppscotch-cli/.claude/SKILL.md
+/tmp

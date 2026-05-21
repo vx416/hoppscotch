@@ -33,11 +33,13 @@ const resolveRuntime = async (options: {
   server?: string;
   token?: string;
   refreshToken?: string;
+  teamId?: string;
 }) =>
   resolveCliRuntimeConfig({
     server: options.server,
     token: options.token,
     refreshToken: options.refreshToken,
+    teamId: options.teamId,
   });
 
 export const registerEnvCommand = (program: Command) => {
@@ -98,6 +100,7 @@ export const registerEnvCommand = (program: Command) => {
       }
 
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
       const variables = await readVariablesInput(options.variables);
       const result = await applyEnvironment(
         {
@@ -109,7 +112,7 @@ export const registerEnvCommand = (program: Command) => {
           id: options.id,
           name,
           variables,
-          teamID: options.team,
+          teamID,
           global: Boolean(options.global),
         },
         async (tokens) =>
@@ -135,22 +138,24 @@ export const registerEnvCommand = (program: Command) => {
     .description("List environments")
     .action(async (options) => {
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
+      const scope = teamID ? "team" : options.global ? "global" : "personal";
       const result = await listEnvironments(
         {
           serverUrl: runtime.server ?? options.server,
           token: runtime.token ?? options.token,
           refreshToken: runtime.refreshToken ?? options.refreshToken,
         },
-        options.team ? "team" : options.global ? "global" : "personal",
-        options.team,
+        scope,
+        teamID,
         async (tokens) =>
           persistRefreshedTokens(runtime.server ?? options.server, tokens)
       );
 
       printJson({
         ok: !result.errors?.length,
-        scope: options.team ? "team" : options.global ? "global" : "personal",
-        teamID: options.team ?? undefined,
+        scope,
+        teamID: teamID ?? undefined,
         environments: result.environments,
         errors: result.errors?.map((error) => error.message),
       });
@@ -171,6 +176,7 @@ export const registerEnvCommand = (program: Command) => {
     .description("Create a new environment without merging into existing ones")
     .action(async (name: string | undefined, options) => {
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
       const variables = await readVariablesInput(options.variables);
       const result = await createEnvironment(
         {
@@ -181,7 +187,7 @@ export const registerEnvCommand = (program: Command) => {
         {
           name,
           variables,
-          teamID: options.team,
+          teamID,
           global: Boolean(options.global),
         },
         async (tokens) =>
@@ -209,6 +215,7 @@ export const registerEnvCommand = (program: Command) => {
     .description("Update an environment by id")
     .action(async (id: string, options) => {
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
       const variables = await readVariablesInput(options.variables);
       const result = await updateEnvironment(
         {
@@ -220,7 +227,7 @@ export const registerEnvCommand = (program: Command) => {
           id,
           name: options.name ?? "",
           variables,
-          teamID: options.team,
+          teamID,
         },
         async (tokens) =>
           persistRefreshedTokens(runtime.server ?? options.server, tokens)
@@ -246,6 +253,7 @@ export const registerEnvCommand = (program: Command) => {
     .description("Delete an environment by id")
     .action(async (id: string, options) => {
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
       const result = await deleteEnvironment(
         {
           serverUrl: runtime.server ?? options.server,
@@ -253,7 +261,7 @@ export const registerEnvCommand = (program: Command) => {
           refreshToken: runtime.refreshToken ?? options.refreshToken,
         },
         id,
-        options.team,
+        teamID,
         async (tokens) =>
           persistRefreshedTokens(runtime.server ?? options.server, tokens)
       );
@@ -333,6 +341,7 @@ export const registerEnvCommand = (program: Command) => {
     .description("Remove all variables from a team environment")
     .action(async (id: string, options) => {
       const runtime = await resolveRuntime(options);
+      const teamID = options.team ?? runtime.teamId;
       const result = await clearTeamEnvironmentVariables(
         {
           serverUrl: runtime.server ?? options.server,

@@ -1,0 +1,60 @@
+[
+  {
+    "v": 12,
+    "name": "request-map-body-coll",
+    "folders": [],
+    "requests": [
+      {
+        "v": "17",
+        "name": "first",
+        "method": "POST",
+        "endpoint": "https://echo.hoppscotch.io",
+        "params": [],
+        "headers": [],
+        "auth": {
+          "authType": "inherit",
+          "authActive": true
+        },
+        "preRequestScript": "",
+        "testScript": "const received = JSON.parse(pw.response.body.data);\n\npw.test(\"Applies request body override for first\", () => {\n  pw.expect(received.request).toBe(\"first\");\n  pw.expect(received.payload).toBe(\"alpha\");\n});",
+        "body": {
+          "contentType": null,
+          "body": null
+        },
+        "requestVariables": [],
+        "responses": {},
+        "description": null
+      },
+      {
+        "v": "17",
+        "name": "second",
+        "method": "POST",
+        "endpoint": "https://echo.hoppscotch.io",
+        "params": [],
+        "headers": [],
+        "auth": {
+          "authType": "inherit",
+          "authActive": true
+        },
+        "preRequestScript": "",
+        "testScript": "const received = JSON.parse(pw.response.body.data);\n\npw.test(\"Applies request body override for second\", () => {\n  pw.expect(received.request).toBe(\"second\");\n  pw.expect(received.payload).toBe(\"beta\");\n});",
+        "body": {
+          "contentType": null,
+          "body": null
+        },
+        "requestVariables": [],
+        "responses": {},
+        "description": null
+      }
+    ],
+    "auth": {
+      "authType": "inherit",
+      "authActive": true
+    },
+    "headers": [],
+    "variables": [],
+    "description": null,
+    "preRequestScript": "",
+    "testScript": ""
+  }
+]

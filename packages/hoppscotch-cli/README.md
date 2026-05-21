@@ -4,9 +4,10 @@ A CLI to run Hoppscotch Test Scripts in CI environments.
 
 ### **Commands:**
 
-- `hopp test [options] [file]`: testing hoppscotch collection.json file
+- `hopp test [options] [file]`: run a Hoppscotch collection export or workspace collection by id
 - `hopp init`: interactively initialize local CLI config
 - `hopp config init`: same interactive config flow under the config group
+- `hopp gen-skill`: generate the Hoppscotch CLI skill files under the current working directory's `.claude/hoppscotch-cli/` and `.codex/hoppscotch-cli/`
 
 ### **Usage:**
 
@@ -31,11 +32,12 @@ hopp [options or commands] arguments
 
 3.  #### **`hopp test [options] <file_path_or_id>`**
 
-    - Interactive CLI to accept Hoppscotch collection JSON path
-    - Parses the collection JSON and executes each requests
-    - Executes pre-request script.
-    - Outputs the response of each request.
-    - Executes and outputs test-script response.
+    - Runs one or more saved requests from a Hoppscotch collection export file or a workspace collection id.
+    - If you pass request targets with `--request`, only those requests are executed.
+    - If a request has a saved body, that body is used as-is.
+    - If a request body is missing, Hoppscotch CLI uses the request's saved/default body shape, not any browser-only UI state.
+    - Executes pre-request scripts, the HTTP request, and test scripts in order.
+    - Outputs the request response and test results.
 
     #### Options:
 
@@ -84,11 +86,34 @@ hopp [options or commands] arguments
       value4,value5,value6
       ```
 
-      For every iteration the values will be replaced with the respective keys in the environment. For iteration 1 the value1,value2,value3 will be replaced and for iteration 2 value4,value5,value6 will be replaced and so on.
+    - For every iteration, the values will be merged into the environment for that run.
+    - Values from `--iteration-data` override environment variables with the same key.
+    - Use `--iteration-count` if you want more iterations than rows in the CSV.
 
     ##### `--request-map <file_path_or_json>`
 
-    - Accepts a JSON array or a path to a JSON file in the below format:
+    - Accepts either:
+      - a JSON array passed inline on the command line, or
+      - a path to a JSON file containing the same array
+    - Use it to temporarily override request bodies by request name during a `hopp test` run.
+    - If you do not pass `--request`, the CLI runs the requests named in the map.
+    - If you pass both `--request` and `--request-map`, the CLI runs the union of both target sets.
+    - Each entry must contain:
+      - `request_name`: exact saved request name to match
+      - `request_body`: the body to inject for that request
+    - If `request_body` is a JSON object or array, the CLI serializes it to JSON before sending the request.
+    - If `request_body` is a string, the CLI sends it as-is.
+
+    - Inline JSON example:
+
+      ```bash
+      hopp test ./collection.json \
+        --request login \
+        --request search-user \
+        --request-map '[{"request_name":"login","request_body":{"username":"alice","password":"secret"}},{"request_name":"search-user","request_body":{"query":"hoppscotch"}}]'
+      ```
+
+    - File example:
 
       ```json
       [
@@ -98,11 +123,17 @@ hopp [options or commands] arguments
             "username": "alice",
             "password": "secret"
           }
+        },
+        {
+          "request_name": "search-user",
+          "request_body": {
+            "query": "hoppscotch"
+          }
         }
       ]
       ```
 
-    - The CLI will match each `request_name` against the saved request name and temporarily override that request's body for the test run.
+    - The CLI matches each `request_name` against the saved request name and temporarily overrides that request's body for the test run.
 
     #### `--legacy-sandbox`
 
@@ -112,12 +143,59 @@ hopp [options or commands] arguments
 
     - Prompts for local CLI config keys one by one.
     - Press `Enter` to keep the current value for a key.
+    - Intended for first-time setup or re-checking local CLI defaults.
     - Supported keys:
       - `server`
       - `token`
       - `refreshToken`
       - `teamId`
       - `workspaceId`
+    - Example flow:
+
+      ```text
+      Server URL [https://api.hoppscotch.io/graphql]:
+      Access token [set]:
+      Refresh token [set]:
+      Team ID [team-123]:
+      Workspace ID:
+      ```
+
+    - After the prompts finish, the CLI writes the result to the local config file and prints the stored values in a masked form.
+
+5.  #### **`hopp gen-skill`**
+
+    - Generates the Hoppscotch CLI skill for AI agents.
+    - Writes the same `SKILL.md` content to two agent-specific locations under the current working directory:
+      - `./.claude/hoppscotch-cli/SKILL.md`
+      - `./.codex/hoppscotch-cli/SKILL.md`
+    - The generated skill is meant to guide agents that need to create, manage, or test APIs with Hoppscotch.
+    - The skill description explicitly tells agents to use it whenever the task is about API creation, API management, or API testing.
+    - The generated skill explains how to use this CLI to:
+      - initialize config
+      - list and manage collections
+      - create, list, update, delete, and run requests
+      - manage environments
+      - run tests with `--request-map` and `--iteration-data`
+    - Use `--print` if you want to inspect the final skill markdown without writing files.
+    - Use `--force` when you want to overwrite existing skill files.
+    - Example:
+
+      ```bash
+      hopp gen-skill
+      ```
+
+    - Example print-only flow:
+
+      ```bash
+      hopp gen-skill --print > SKILL.md
+      ```
+
+    - Example generated file locations:
+
+      ```text
+      ./.claude/hoppscotch-cli/SKILL.md
+      ./.codex/hoppscotch-cli/SKILL.md
+      ```
 
 ## Versioning
 
@@ -129,9 +207,10 @@ The Hoppscotch CLI follows **pre-1.0 semantic versioning** conventions while in 
 
 > Once the CLI reaches stability and a mature feature set, we will transition to standard semantic versioning starting with `1.0.0`.
 
-## Install
+## Install from source
 
-- Before you install Hoppscotch CLI you need to make sure you have the dependencies it requires to run.
+- This CLI is maintained in the Hoppscotch repository. It is not a standalone official installer flow, so the recommended way to use it is from source in this repo.
+- Before you build or link the CLI, make sure you have the dependencies it requires to run.
 
   - **Windows & macOS**: You will need `node-gyp` installed. Find instructions here: https://github.com/nodejs/node-gyp
   - **Debian/Ubuntu derivatives**:
@@ -155,9 +234,19 @@ The Hoppscotch CLI follows **pre-1.0 semantic versioning** conventions while in 
     sudo dnf install python3 make gcc gcc-c++ zlib-devel brotli-devel openssl-devel libuv-devel
     ```
 
-- Once the dependencies are installed, install [@hoppscotch/cli](https://www.npmjs.com/package/@hoppscotch/cli) from npm by running:
+- To install the CLI locally from this repository:
+  ```sh
+  git clone <repo-url>
+  cd hoppscotch
+  pnpm install
+  cd packages/hoppscotch-cli
+  pnpm run build
+  sudo pnpm link --global
   ```
-  npm i -g @hoppscotch/cli
+- After linking, run `hopp --help` or `hopp test ...` from any shell.
+- If you do not want to link globally, you can run the binary directly from the repo:
+  ```sh
+  node packages/hoppscotch-cli/bin/hopp.js --help
   ```
 
 ## **Developing:**

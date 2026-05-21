@@ -10,6 +10,7 @@ import {
   createEnvironment,
   deleteAllPersonalEnvironments,
   deleteEnvironment,
+  loadRequestEnvironments,
   listEnvironments,
   listTeams,
   normalizeEnvironmentRecord,
@@ -162,6 +163,86 @@ describe("environment utils", () => {
           id: "team-env-1",
           name: "dev",
           parsedVariables: { baseUrl: "https://api" },
+        },
+      ],
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  test("loads request environments from graphql scopes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        mockResponse(200, {
+          data: {
+            me: {
+              environments: [],
+            },
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse(200, {
+          data: {
+            me: {
+              globalEnvironments: {
+                id: "global-env-1",
+                userUid: "user-1",
+                name: "Global",
+                variables: '[{"key":"globalVar","currentValue":"1","initialValue":"1","secret":false}]',
+                isGlobal: true,
+              },
+            },
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse(200, {
+          data: {
+            team: {
+              teamEnvironments: [
+                {
+                  id: "team-env-1",
+                  userUid: "user-1",
+                  name: "dev",
+                  variables: '[{"key":"baseUrl","currentValue":"https://api","initialValue":"https://api","secret":false}]',
+                  isGlobal: false,
+                  teamID: "team-1",
+                },
+              ],
+            },
+          },
+        })
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      loadRequestEnvironments(
+        {
+          serverUrl: "https://api.example.com",
+          token: "access-token",
+          refreshToken: "refresh-token",
+        },
+        "team-env-1",
+        "team-1"
+      )
+    ).resolves.toEqual({
+      global: [
+        {
+          key: "globalVar",
+          currentValue: "1",
+          initialValue: "1",
+          secret: false,
+        },
+      ],
+      selected: [
+        {
+          key: "baseUrl",
+          currentValue: "https://api",
+          initialValue: "https://api",
+          secret: false,
         },
       ],
     });

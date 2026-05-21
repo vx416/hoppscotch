@@ -9,6 +9,7 @@ import {
   getTestJsonFilePath,
   runCLI,
   runCLIWithNetworkRetry,
+  trimAnsi,
 } from "../../utils";
 
 describe("hopp test [options] <file_path_or_id>", { timeout: 100000 }, () => {
@@ -1512,6 +1513,53 @@ describe("hopp test [options] <file_path_or_id>", { timeout: 100000 }, () => {
       );
 
       expect(result.error).toBeNull();
+    });
+  });
+
+  describe("Test `hopp test <file> --request-map <file_path_or_json>` command:", () => {
+    test("Runs requests named in a request map even when no --request is supplied", async () => {
+      const COLL_PATH = getTestJsonFilePath(
+        "request-map-union-coll.json",
+        "collection"
+      );
+      const REQUEST_MAP_PATH = path.resolve(
+        __dirname,
+        "../fixtures/collections/request-map-union-map.json"
+      );
+      const args = `test ${COLL_PATH} --request-map ${REQUEST_MAP_PATH}`;
+
+      const result = await runCLIWithNetworkRetry(args);
+      if (result === null) return;
+
+      expect(result.error).toBeNull();
+      expect(result.stdout).toContain("Running: request-map-union-coll/second");
+    });
+
+    test("Merges --request with request-map targets", async () => {
+      const COLL_PATH = getTestJsonFilePath(
+        "request-map-union-coll.json",
+        "collection"
+      );
+      const REQUEST_MAP_PATH = path.resolve(
+        __dirname,
+        "../fixtures/collections/request-map-union-map.json"
+      );
+      const args = `test ${COLL_PATH} --request first --request-map ${REQUEST_MAP_PATH}`;
+
+      const result = await runCLIWithNetworkRetry(args);
+      if (result === null) return;
+
+      expect(result.error).toBeNull();
+      expect(result.stdout).toContain("Running: request-map-union-coll/first");
+      expect(result.stdout).toContain("Running: request-map-union-coll/second");
+    });
+
+    test("Shows the request-map option in command help", async () => {
+      const { stdout, stderr, error } = await runCLI("test --help");
+      expect(error).not.toBeNull();
+      expect(trimAnsi(`${stdout}\n${stderr}`)).toContain(
+        "--request-map <file_path_or_json>"
+      );
     });
   });
 });

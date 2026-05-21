@@ -1,6 +1,9 @@
 export type TestCmdOptions = {
   env?: string;
   delay?: string;
+  request?: string[];
+  requestMap?: string;
+  json?: boolean;
   token?: string;
   server?: string;
   reporterJunit?: string;
@@ -15,6 +18,19 @@ export type TestCmdCollectionOptions = Omit<TestCmdOptions, "env" | "delay">;
 // Consumed in the `--env, -e` flag action handler
 export type TestCmdEnvironmentOptions = Omit<TestCmdOptions, "env"> & {
   env: string;
+};
+
+export type RequestRunCmdOptions = {
+  env?: string;
+  delay?: string;
+  token?: string;
+  server?: string;
+  refreshToken?: string;
+  teamId?: string;
+  collectionId?: string;
+  collectionName?: string;
+  verbose?: boolean;
+  legacySandbox?: boolean;
 };
 
 export type HOPP_ENV_FILE_EXT = "json";

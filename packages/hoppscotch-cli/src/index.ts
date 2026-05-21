@@ -7,6 +7,7 @@ import { registerConfigCommand } from "./commands/config";
 import { registerCollectionCommand } from "./commands/collection";
 import { registerEnvCommand } from "./commands/env";
 import { registerGraphqlCommand } from "./commands/graphql";
+import { registerSkillCommand } from "./commands/skill";
 import { registerRequestCommand } from "./commands/request";
 import { test } from "./commands/test";
 import { handleError } from "./handlers/error";
@@ -36,6 +37,7 @@ registerConfigCommand(program);
 registerCollectionCommand(program);
 registerEnvCommand(program);
 registerGraphqlCommand(program);
+registerSkillCommand(program);
 registerRequestCommand(program);
 
 program
@@ -63,7 +65,9 @@ program.exitOverride().configureOutput({
  */
 program
   .command("init")
-  .description("Interactively initialize the local CLI config")
+  .description(
+    "Interactively initialize local CLI config keys (server, token, refreshToken, teamId, workspaceId)"
+  )
   .action(async () => {
     const { next } = await runCliConfigInit();
     console.log(JSON.stringify(formatCliConfigInitResult(next), null, 2));
@@ -87,7 +91,7 @@ program
   )
   .option(
     "--request-map <file_path_or_json>",
-    "JSON string or path to a JSON file that maps request names to request bodies"
+    "JSON array or JSON file mapping request_name to request_body; request names in the map are executed even without --request, and the map merges with any explicit --request targets"
   )
   .option(
     "--json",

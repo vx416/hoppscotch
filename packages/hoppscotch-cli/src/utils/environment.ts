@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import { executeGraphQLWithAuth } from "./graphql";
 import { GraphQLEnvironmentRecord, NormalizedEnvironmentRecord } from "../types/environment";
 import { GraphQLRequestOptions, GraphQLAuthTokens } from "../types/graphql";
+import { HoppEnvPair, HoppEnvs } from "../types/request";
 
 export type EnvironmentScope = "personal" | "global" | "team";
 
@@ -170,6 +171,44 @@ const parseMaybeJson = (value: string) => {
   } catch {
     return value;
   }
+};
+
+const toEnvPairs = (record: GraphQLEnvironmentRecord): HoppEnvPair[] => {
+  const parsed = normalizeEnvironmentRecord(record).parsedVariables;
+
+  if (Array.isArray(parsed)) {
+    return parsed
+      .map((variable) => {
+        if (!isPlainObject(variable) || typeof variable.key !== "string") {
+          return null;
+        }
+
+        return {
+          key: variable.key,
+          initialValue:
+            typeof variable.initialValue === "string"
+              ? variable.initialValue
+              : normalizeScalarValue(variable.initialValue ?? variable.value),
+          currentValue:
+            typeof variable.currentValue === "string"
+              ? variable.currentValue
+              : normalizeScalarValue(variable.currentValue ?? variable.value),
+          secret: Boolean(variable.secret),
+        };
+      })
+      .filter((variable): variable is HoppEnvPair => Boolean(variable));
+  }
+
+  if (isPlainObject(parsed)) {
+    return Object.entries(parsed).map(([key, value]) => ({
+      key,
+      initialValue: normalizeScalarValue(value),
+      currentValue: normalizeScalarValue(value),
+      secret: false,
+    }));
+  }
+
+  return [];
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -390,7 +429,10 @@ export const listEnvironments = async (
 
   const environments = (() => {
     if (scope === "personal") return result.data?.me.environments ?? [];
-    if (scope === "global") return result.data?.me.globalEnvironments ?? [];
+    if (scope === "global") {
+      const globalEnvironment = result.data?.me.globalEnvironments;
+      return globalEnvironment ? [globalEnvironment] : [];
+    }
     return result.data?.team?.teamEnvironments ?? [];
   })();
 
@@ -637,5 +679,72 @@ export const listTeams = async (
   return {
     ...result,
     teams: result.data?.myTeams ?? [],
+  };
+};
+
+export const loadRequestEnvironments = async (
+  options: GraphQLRequestOptions,
+  environmentId?: string,
+  teamID?: string,
+  onTokensRefreshed?: (tokens: GraphQLAuthTokens) => Promise<void> | void
+): Promise<HoppEnvs> => {
+  const currentOptions = {
+    serverUrl: options.serverUrl,
+    token: options.token,
+    refreshToken: options.refreshToken,
+  };
+
+  const syncTokens = async (tokens: GraphQLAuthTokens) => {
+    currentOptions.token = tokens.token;
+    currentOptions.refreshToken = tokens.refreshToken;
+
+    if (onTokensRefreshed) {
+      await onTokensRefreshed(tokens);
+    }
+  };
+
+  const personalResult = await listEnvironments(
+    currentOptions,
+    "personal",
+    undefined,
+    syncTokens
+  );
+  const globalResult = await listEnvironments(
+    currentOptions,
+    "global",
+    undefined,
+    syncTokens
+  );
+  const teamResult = teamID
+    ? await listEnvironments(currentOptions, "team", teamID, syncTokens)
+    : null;
+
+  const personalEnvironments = personalResult.environments ?? [];
+  const globalEnvironment = globalResult.environments?.[0] ?? null;
+  const teamEnvironments = teamResult?.environments ?? [];
+
+  const allEnvironments = [
+    ...teamEnvironments,
+    ...personalEnvironments,
+    ...(globalEnvironment ? [globalEnvironment] : []),
+  ];
+
+  const selectedEnvironment = environmentId
+    ? allEnvironments.find((environment) => environment.id === environmentId) ??
+      null
+    : null;
+
+  if (environmentId && !selectedEnvironment) {
+    throw new Error(
+      `Unable to find an environment matching "${environmentId}".`
+    );
+  }
+
+  return {
+    global: globalEnvironment ? toEnvPairs(globalEnvironment) : [],
+    selected:
+      selectedEnvironment && !selectedEnvironment.isGlobal
+        ? toEnvPairs(selectedEnvironment)
+        : [],
   };
 };

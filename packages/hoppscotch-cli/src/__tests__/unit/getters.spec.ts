@@ -394,6 +394,44 @@ describe("getters", () => {
         ).toBeCalled();
         expect(readJsonFileSpy).not.toHaveBeenCalled();
       });
+
+      test("normalizes GraphQL server URLs to workspace base URLs before fetching access-token resources", async () => {
+        fs.access = vi.fn().mockRejectedValueOnce(undefined);
+        axios.get = vi.fn().mockResolvedValue({
+          data: {
+            id: "clx06ik0o00028t6uwywwnxgg",
+            data: null,
+            title: "test-coll",
+            parentID: null,
+            folders: [],
+            requests: [],
+          },
+          headers: {
+            "content-type": "application/json",
+          },
+        });
+
+        const pathOrId = "valid-collection-id";
+        const resourceType = "collection";
+        const accessToken = "valid-access-token";
+        const serverUrl = "https://example.com/backend/graphql";
+
+        await getResourceContents({
+          pathOrId,
+          accessToken,
+          serverUrl,
+          resourceType,
+        });
+
+        expect(axios.get).toBeCalledWith(
+          `${"https://example.com/backend"}/v1/access-tokens/${resourceType}/${pathOrId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+      });
     });
   });
 

@@ -6,6 +6,7 @@ import {
 } from "@hoppscotch/data";
 import { z } from "zod";
 
+import { RequestRunnerResponse } from "../interfaces/response";
 import { TestReport } from "../interfaces/response";
 import { HoppCLIError } from "./errors";
 
@@ -42,8 +43,15 @@ export type ProcessRequestParams = {
   envs: HoppEnvs;
   path: string;
   delay: number;
+  silent?: boolean;
   legacySandbox?: boolean;
   collectionVariables?: HoppCollectionVariable[];
   inheritedPreRequestScripts?: string[];
   inheritedTestScripts?: string[];
+};
+
+export type ProcessRequestResult = {
+  envs: HoppEnvs;
+  report: RequestReport;
+  response: RequestRunnerResponse;
 };

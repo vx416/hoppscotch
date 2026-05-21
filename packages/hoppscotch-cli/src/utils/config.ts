@@ -28,6 +28,7 @@ export const normalizeCliConfig = (
   server: config?.server,
   token: config?.token,
   refreshToken: config?.refreshToken,
+  teamId: config?.teamId,
   workspaceId: config?.workspaceId,
   collectionId: config?.collectionId,
   environmentId: config?.environmentId,

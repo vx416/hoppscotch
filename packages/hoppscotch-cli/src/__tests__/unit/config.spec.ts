@@ -106,6 +106,7 @@ describe("config utils", () => {
       token: "pat-saved",
       refreshToken: "ref-saved",
       workspaceId: undefined,
+      teamId: undefined,
       collectionId: undefined,
       environmentId: undefined,
     });
@@ -192,6 +193,7 @@ describe("config utils", () => {
       token: "pat-updated",
       refreshToken: undefined,
       workspaceId: undefined,
+      teamId: undefined,
       collectionId: undefined,
       environmentId: undefined,
     });

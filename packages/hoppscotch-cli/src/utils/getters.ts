@@ -55,6 +55,9 @@ export const getColorStatusCode = (
   return chalk.redBright(statusCode);
 };
 
+const normalizeWorkspaceServerUrl = (serverUrl: string) =>
+  serverUrl.replace(/\/graphql\/?$/, "");
+
 /**
  * Replaces all template-string with their effective ENV values to generate effective
  * request headers/parameters meta-data.
@@ -191,7 +194,9 @@ export const getResourceContents = async (
   }
 
   if (accessToken && !fileExistsInPath) {
-    const resolvedServerUrl = serverUrl || "https://api.hoppscotch.io";
+    const resolvedServerUrl = normalizeWorkspaceServerUrl(
+      serverUrl || "https://api.hoppscotch.io"
+    );
 
     try {
       const separator = resolvedServerUrl.endsWith("/") ? "" : "/";
