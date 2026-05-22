@@ -239,10 +239,13 @@ The Hoppscotch CLI follows **pre-1.0 semantic versioning** conventions while in 
   git clone <repo-url>
   cd hoppscotch
   pnpm install
+  pnpm setup
   cd packages/hoppscotch-cli
   pnpm run build
-  sudo pnpm link --global
+  pnpm link --global
   ```
+- `pnpm setup` creates the global bin directory that `pnpm link --global` needs for your user account. Do not use `sudo` for `pnpm link --global`, because that switches to root's pnpm config and usually does not have the global bin dir initialized.
+- If you already have `PNPM_HOME` configured and on your `PATH`, you can skip `pnpm setup`.
 - After linking, run `hopp --help` or `hopp test ...` from any shell.
 - If you do not want to link globally, you can run the binary directly from the repo:
   ```sh
@@ -262,7 +265,7 @@ The Hoppscotch CLI follows **pre-1.0 semantic versioning** conventions while in 
    ```
 4. `cd packages/hoppscotch-cli`
 5. `pnpm run build`
-6. `sudo pnpm link --global`
+6. `pnpm link --global`
 7. Test the installation by executing `hopp`
 
 ## **Contributing:**
