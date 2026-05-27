@@ -5,6 +5,7 @@ A CLI to run Hoppscotch Test Scripts in CI environments.
 ### **Commands:**
 
 - `hopp test [options] [file]`: run a Hoppscotch collection export or workspace collection by id
+- `hopp request show <request> [collection]`: print the complete saved request JSON without executing it
 - `hopp init`: interactively initialize local CLI config
 - `hopp config init`: same interactive config flow under the config group
 - `hopp gen-skill`: generate the Hoppscotch CLI skill files under the current working directory's `.claude/hoppscotch-cli/` and `.codex/hoppscotch-cli/`
@@ -103,6 +104,12 @@ hopp [options or commands] arguments
       - `request_body`: the body to inject for that request
     - If `request_body` is a JSON object or array, the CLI serializes it to JSON before sending the request.
     - If `request_body` is a string, the CLI sends it as-is.
+    - Large JSON numbers are handled by the JavaScript runtime used by CLI scripts. Values larger than `Number.MAX_SAFE_INTEGER` (`9007199254740991`) can lose precision when parsed as numbers.
+    - For `uint64`, Snowflake IDs, game UUIDs, or similar identifiers:
+      - Prefer sending the value as a string if the API supports it.
+      - If the API requires a JSON number, avoid rewriting the body from pre-request scripts.
+      - For CLI-only tests, use a raw string `request_body` in `--request-map` or a local fixture to avoid JavaScript number coercion.
+      - Keep canonical sample values visible in the saved request body instead of hiding them in environment variables or pre-request scripts.
 
     - Inline JSON example:
 
@@ -139,7 +146,19 @@ hopp [options or commands] arguments
 
     - Opt out from the experimental scripting sandbox.
 
-4.  #### **`hopp init` / `hopp config init`**
+4.  #### **`hopp request show <request_path_or_id> [collection_file_path_or_id]`**
+
+    - Prints the complete saved request JSON for a local collection export or workspace collection.
+    - Does not execute pre-request scripts, resolve environments, or send the HTTP request.
+    - Preserves Hoppscotch GraphQL request exports as saved, instead of converting them into REST requests.
+    - Alias: `hopp request get`.
+
+    ```bash
+    hopp request show "GraphQL Root/Get User" ./collection.json
+    hopp request show "Get User" --collection-name "GraphQL Root" --team team_123
+    ```
+
+5.  #### **`hopp init` / `hopp config init`**
 
     - Prompts for local CLI config keys one by one.
     - Press `Enter` to keep the current value for a key.

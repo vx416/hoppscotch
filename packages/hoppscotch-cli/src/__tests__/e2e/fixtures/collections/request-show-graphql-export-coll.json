@@ -1,0 +1,31 @@
+[
+  {
+    "id": "gql-root",
+    "name": "GraphQL Root",
+    "data": null,
+    "folders": [],
+    "requests": [
+      {
+        "id": "gql-request-1",
+        "v": 9,
+        "name": "Get User",
+        "url": "https://api.example.com/graphql",
+        "headers": [
+          {
+            "key": "x-client",
+            "value": "cli",
+            "active": true,
+            "description": ""
+          }
+        ],
+        "query": "query GetUser($id: ID!) { user(id: $id) { id } }",
+        "variables": "{\"id\":\"1\"}",
+        "auth": {
+          "authType": "bearer",
+          "authActive": true,
+          "token": "token"
+        }
+      }
+    ]
+  }
+]

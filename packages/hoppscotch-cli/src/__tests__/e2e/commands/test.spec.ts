@@ -552,6 +552,20 @@ describe("hopp test [options] <file_path_or_id>", { timeout: 100000 }, () => {
       expect(defaultResult.error).toBeNull();
     });
 
+    test("Prints post-request script console output when running a selected request", async () => {
+      const args = `test ${getTestJsonFilePath(
+        "request-target-post-script-console-coll.json",
+        "collection"
+      )} --request post-script-console-request`;
+
+      const result = await runCLIWithNetworkRetry(args);
+      if (result === null) return;
+
+      expect(result.error).toBeNull();
+      expect(result.stdout).toContain("POST_REQUEST_SCRIPT_CONSOLE_MARKER");
+      expect(result.stdout).toContain("post-request script ran");
+    });
+
     // The legacy sandbox uses a non-module evaluator that rejects top-level
     // ESM imports at parse time, so it runs against a pruned fixture that
     // omits the import-using request.

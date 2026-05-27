@@ -25,6 +25,7 @@ hopp init
 hopp config show
 hopp collection list --team team_123
 hopp request create "login" collection_123 --request ./request.json --team team_123
+hopp request show "collection/path/login" "collection/path"
 hopp request run "collection/path/login" "collection/path" --env ./env.json
 hopp test ./collection.json --request login --request-map ./request-map.json
 hopp gen-skill --print
@@ -45,6 +46,8 @@ description: ${quoteYaml(description)}
 ## Purpose
 
 Use \`hopp\` to work with Hoppscotch from the command line. This skill is for agents that need to create, manage, or test APIs in Hoppscotch.
+
+Use it to manage and test APIs with Hoppscotch.
 
 If the task is about creating an API, managing an API, or testing an API, use this skill.
 
@@ -67,6 +70,7 @@ The generator writes the Hoppscotch CLI skill files into two agent-specific loca
 - \`hopp config set <key> <value>\` - persist one config value.
 - \`hopp config unset <key>\` - remove a stored config value.
 - \`hopp test <collection>\` - execute a collection export or workspace collection.
+- \`hopp request show <request> <collection>\` - print the complete saved request JSON without executing it.
 - \`hopp request run <request> <collection>\` - run one saved request.
 - \`hopp request create <title> <collection> --request <json_or_path>\` - create a workspace request from JSON.
 - \`hopp collection list\` - list workspace collections.
@@ -82,6 +86,7 @@ The generator writes the Hoppscotch CLI skill files into two agent-specific loca
 - If you pass a flag, it overrides the stored config for that run.
 - Workspace operations usually need a \`server\`, \`token\`, and often a \`teamId\`.
 - \`hopp test\` runs saved request data. If a request body is missing, the CLI uses the saved request body shape from the request JSON, not browser UI state.
+- \`hopp request show\` is the safest way to inspect the exact saved request JSON, including Hoppscotch GraphQL request exports.
 - \`--request-map\` lets you override individual request bodies by exact saved request name during a test run.
 - Iteration data from \`--iteration-data\` merges CSV rows into the environment on each iteration.
 - \`--legacy-sandbox\` disables the experimental scripting sandbox when a test script needs it.
@@ -117,6 +122,8 @@ Use a JSON array in a file or inline on the command line:
 - For saved requests, put the canonical body in the request JSON.
 - Use \`--request-map\` when you need different bodies for different requests during a single test run.
 - Use \`request create --request <json_or_path>\` to persist new request bodies into the workspace backend.
+- Do not place large \`uint64\`, Snowflake, game UUID, or similar sample IDs in pre-request scripts as body overrides.
+- Keep canonical sample bodies visible in the saved request. If CLI tests need to avoid JavaScript number precision loss, use a raw string \`request_body\` in \`--request-map\` or a local fixture instead.
 
 ## Workflow
 

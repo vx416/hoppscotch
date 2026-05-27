@@ -1,0 +1,38 @@
+{
+  "v": 12,
+  "name": "request-target-post-script-console-coll",
+  "variables": [],
+  "description": null,
+  "folders": [],
+  "requests": [
+    {
+      "v": "17",
+      "id": "post-script-console-request",
+      "name": "post-script-console-request",
+      "method": "GET",
+      "endpoint": "https://echo.hoppscotch.io",
+      "params": [],
+      "headers": [],
+      "preRequestScript": "",
+      "testScript": "console.log(\"POST_REQUEST_SCRIPT_CONSOLE_MARKER\");\npw.test(\"post-request script ran\", () => {\n  pw.expect(pw.response.status).toBe(200);\n});",
+      "auth": {
+        "authType": "inherit",
+        "authActive": true
+      },
+      "body": {
+        "contentType": null,
+        "body": null
+      },
+      "requestVariables": [],
+      "responses": {},
+      "description": null
+    }
+  ],
+  "auth": {
+    "authType": "inherit",
+    "authActive": true
+  },
+  "headers": [],
+  "preRequestScript": "",
+  "testScript": ""
+}

@@ -9,7 +9,7 @@ import { executeGraphQLWithAuth } from "./graphql";
 import { GraphQLAuthTokens, GraphQLRequestOptions } from "../types/graphql";
 import { CollectionListItem, CollectionListResult } from "../types/collection";
 
-type WorkspaceCollectionNode = {
+export type WorkspaceCollectionNode = {
   id?: string;
   _ref_id?: string;
   name: string;
@@ -138,6 +138,31 @@ export const loadWorkspaceCollectionsTree = async (
   return {
     ok: true as const,
     collections: parsedCollections.map(exportedCollectionToHoppCollection),
+  };
+};
+
+export const loadWorkspaceCollectionsTreeRaw = async (
+  options: GraphQLRequestOptions,
+  teamID: string,
+  onTokensRefreshed?: (tokens: GraphQLAuthTokens) => Promise<void> | void
+) => {
+  const result = await executeGraphQLWithAuth<{
+    exportCollectionsToJSON?: string;
+  }>(EXPORT_TEAM_COLLECTIONS, { teamID }, options, onTokensRefreshed);
+
+  if (result.errors?.length) {
+    return {
+      ok: false as const,
+      collections: [],
+      errors: result.errors.map((err) => err.message),
+    };
+  }
+
+  const exportedCollection = result.data?.exportCollectionsToJSON ?? "[]";
+
+  return {
+    ok: true as const,
+    collections: parseExportedCollections(exportedCollection),
   };
 };
 

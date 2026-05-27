@@ -440,7 +440,7 @@ export const test = (pathOrId: string, options: TestCmdOptions) => async () => {
             log(chalk.yellowBright(`\nRunning: ${chalk.bold(resolved.path)}`));
           }
 
-          const result = await withMutedConsole(() =>
+          const runSelectedRequest = () =>
             processRequest({
               path: resolved.path,
               request: resolved.request,
@@ -451,8 +451,11 @@ export const test = (pathOrId: string, options: TestCmdOptions) => async () => {
               collectionVariables: resolved.collectionVariables,
               inheritedPreRequestScripts: resolved.inheritedPreRequestScripts,
               inheritedTestScripts: resolved.inheritedTestScripts,
-            })()
-          );
+            })();
+
+          const result = jsonOutputMode
+            ? await withMutedConsole(runSelectedRequest)
+            : await runSelectedRequest();
 
           envs.global = result.envs.global;
           envs.selected = result.envs.selected;

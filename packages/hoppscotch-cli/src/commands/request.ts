@@ -11,7 +11,9 @@ import { refreshGraphQLTokens } from "../utils/graphql";
 import {
   findCollectionMatches,
   loadWorkspaceCollectionsTree,
+  loadWorkspaceCollectionsTreeRaw,
   pickPreferredCollectionMatch,
+  WorkspaceCollectionNode,
 } from "../utils/collection";
 import { parseCollectionData } from "../utils/mutators";
 import { loadRequestEnvironments } from "../utils/environment";
@@ -66,12 +68,13 @@ const resolveRuntime = async (options: {
   teamId?: string;
   collectionId?: string;
   environmentId?: string;
+  team?: string;
 }) =>
   resolveCliRuntimeConfig({
     server: options.server,
     token: options.token,
     refreshToken: options.refreshToken,
-    teamId: options.teamId,
+    teamId: options.teamId ?? options.team,
     collectionId: options.collectionId,
     environmentId: options.environmentId,
   });
@@ -493,6 +496,290 @@ const stripCollectionPrefix = (collectionPath: string, requestTarget: string) =>
   return requestTarget;
 };
 
+type RawCollectionMatch = {
+  collection: WorkspaceCollectionNode;
+  path: string;
+};
+
+type RawRequestContext = {
+  collection: WorkspaceCollectionNode;
+  collectionPath: string;
+  request: Record<string, unknown>;
+  path: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const readRawCollectionsFile = async (path: string) => {
+  const parsed = JSON.parse((await fs.readFile(path)).toString()) as unknown;
+
+  return (Array.isArray(parsed) ? parsed : [parsed]).filter(
+    (collection): collection is WorkspaceCollectionNode =>
+      isRecord(collection) && typeof collection.name === "string"
+  );
+};
+
+const getRawRequestId = (request: Record<string, unknown>) => {
+  const id = request.id ?? request._ref_id;
+  return typeof id === "string" ? id : undefined;
+};
+
+const getRawRequestName = (request: Record<string, unknown>) =>
+  typeof request.name === "string" ? request.name : "Untitled Request";
+
+const collectRawCollectionMatches = (
+  collections: WorkspaceCollectionNode[],
+  target: string,
+  parentPath = "",
+  matches: RawCollectionMatch[] = []
+) => {
+  const normalizedTarget = normalizeTargetPath(target);
+
+  for (const collection of collections) {
+    const path = parentPath ? `${parentPath}/${collection.name}` : collection.name;
+    const normalizedPath = normalizeTargetPath(path);
+
+    if (
+      collection.id === target ||
+      collection._ref_id === target ||
+      normalizedTarget === normalizedPath ||
+      (!target.includes("/") && collection.name === target)
+    ) {
+      matches.push({ collection, path });
+    }
+
+    collectRawCollectionMatches(collection.folders ?? [], target, path, matches);
+  }
+
+  return matches;
+};
+
+const pickPreferredRawCollectionMatch = (
+  matches: RawCollectionMatch[],
+  target: string
+) => {
+  const normalizedTarget = normalizeTargetPath(target);
+
+  return matches
+    .map((match, index) => ({ ...match, index }))
+    .filter(({ collection, path }) => {
+      const normalizedPath = normalizeTargetPath(path);
+
+      return (
+        collection.id === target ||
+        collection._ref_id === target ||
+        normalizedTarget === normalizedPath ||
+        (!target.includes("/") && collection.name === target)
+      );
+    })
+    .sort((a, b) => {
+      const depthA = normalizeTargetPath(a.path).split("/").length;
+      const depthB = normalizeTargetPath(b.path).split("/").length;
+      if (depthA !== depthB) return depthA - depthB;
+
+      const lenA = normalizeTargetPath(a.path).length;
+      const lenB = normalizeTargetPath(b.path).length;
+      if (lenA !== lenB) return lenA - lenB;
+
+      return a.index - b.index;
+    })[0] ?? null;
+};
+
+const collectRawRequestContexts = (
+  collections: WorkspaceCollectionNode[],
+  parentPath = "",
+  matches: RawRequestContext[] = []
+) => {
+  for (const collection of collections) {
+    const collectionPath = parentPath
+      ? `${parentPath}/${collection.name}`
+      : collection.name;
+
+    for (const request of collection.requests ?? []) {
+      if (!isRecord(request)) continue;
+
+      matches.push({
+        collection,
+        collectionPath,
+        request,
+        path: `${collectionPath}/${getRawRequestName(request)}`,
+      });
+    }
+
+    collectRawRequestContexts(collection.folders ?? [], collectionPath, matches);
+  }
+
+  return matches;
+};
+
+const resolveRawRequestContext = (
+  collections: WorkspaceCollectionNode[],
+  requestTarget: string
+) => {
+  const normalizedTarget = normalizeTargetPath(requestTarget);
+  const contexts = collectRawRequestContexts(collections);
+  const matches = contexts.filter((context) => {
+    const requestId = getRawRequestId(context.request);
+    const requestName = getRawRequestName(context.request);
+    const normalizedPath = normalizeTargetPath(context.path);
+    const relativePath = normalizeTargetPath(
+      stripCollectionPrefix(context.collectionPath, context.path)
+    );
+
+    return (
+      requestId === requestTarget ||
+      normalizedTarget === normalizedPath ||
+      normalizedTarget === relativePath ||
+      (!requestTarget.includes("/") && requestName === requestTarget)
+    );
+  });
+
+  if (matches.length === 0) {
+    throw error({
+      code: "INVALID_ARGUMENT",
+      data: `Unable to find a request matching "${requestTarget}".`,
+    });
+  }
+
+  if (matches.length > 1) {
+    throw error({
+      code: "INVALID_ARGUMENT",
+      data: `Multiple requests match "${requestTarget}". Use a request id or a full request path instead.`,
+    });
+  }
+
+  return matches[0];
+};
+
+const loadRawWorkspaceCollections = async (
+  runtime: Awaited<ReturnType<typeof resolveRuntime>>,
+  options: RequestRunCmdOptions & { team?: string }
+) => {
+  const serverUrl = runtime.server ?? options.server;
+  let token = runtime.token ?? options.token;
+  const refreshToken = runtime.refreshToken ?? options.refreshToken;
+  const teamID = options.team ?? options.teamId ?? runtime.teamId;
+
+  if (!teamID) {
+    throw error({
+      code: "INVALID_ARGUMENT",
+      data:
+        "A team id is required to resolve workspace collections over GraphQL. Pass --team <team_id> or save a default teamId with `hopp config set teamId <id>`.",
+    });
+  }
+
+  const fetchCollections = () =>
+    loadWorkspaceCollectionsTreeRaw(
+      {
+        serverUrl: serverUrl ?? "",
+        token,
+        refreshToken,
+      },
+      teamID
+    );
+
+  try {
+    const result = await fetchCollections();
+    if (!result.ok) {
+      throw error({
+        code: "INVALID_ARGUMENT",
+        data: result.errors.join("; "),
+      });
+    }
+
+    return { collections: result.collections, label: `team:${teamID}` };
+  } catch (err) {
+    if (!refreshToken || !isExpiredAccessTokenError(err)) {
+      throw err;
+    }
+
+    const refreshedTokens = await refreshRuntimeTokens({
+      serverUrl,
+      token,
+      refreshToken,
+    });
+    token = refreshedTokens.token;
+
+    const result = await fetchCollections();
+    if (!result.ok) {
+      throw error({
+        code: "INVALID_ARGUMENT",
+        data: result.errors.join("; "),
+      });
+    }
+
+    return { collections: result.collections, label: `team:${teamID}` };
+  }
+};
+
+const resolveRawRequestSelection = async (
+  requestPathOrId: string,
+  collectionPathOrId: string | undefined,
+  options: RequestRunCmdOptions & { team?: string },
+  runtime: Awaited<ReturnType<typeof resolveRuntime>>
+) => {
+  const resolvedCollectionName = options.collectionName;
+  const resolvedCollectionPathOrId =
+    collectionPathOrId ??
+    options.collectionId ??
+    (resolvedCollectionName ? undefined : runtime.collectionId);
+
+  let collections: WorkspaceCollectionNode[] = [];
+  let collectionLabel = "";
+
+  if (resolvedCollectionPathOrId && await pathExists(resolvedCollectionPathOrId)) {
+    collections = await readRawCollectionsFile(resolvedCollectionPathOrId);
+    collectionLabel = resolvedCollectionPathOrId;
+  } else {
+    const workspace = await loadRawWorkspaceCollections(runtime, options);
+    const collectionTarget = resolvedCollectionPathOrId ?? resolvedCollectionName;
+
+    if (collectionTarget) {
+      const matches = collectRawCollectionMatches(
+        workspace.collections,
+        collectionTarget
+      );
+
+      if (matches.length === 0) {
+        throw error({
+          code: "INVALID_ARGUMENT",
+          data: `Unable to find a collection matching "${collectionTarget}".`,
+        });
+      }
+
+      const preferredMatch = pickPreferredRawCollectionMatch(
+        matches,
+        collectionTarget
+      );
+
+      if (!preferredMatch && matches.length > 1) {
+        throw error({
+          code: "INVALID_ARGUMENT",
+          data: `Multiple collections match "${collectionTarget}". Use a collection id or a full collection path instead.`,
+        });
+      }
+
+      const selected = preferredMatch ?? matches[0];
+      collections = [selected.collection];
+      collectionLabel = selected.path;
+    } else {
+      collections = workspace.collections;
+      collectionLabel = workspace.label;
+    }
+  }
+
+  const requestTarget = collectionLabel
+    ? stripCollectionPrefix(collectionLabel, requestPathOrId)
+    : requestPathOrId;
+  const resolvedRequest = resolveRawRequestContext(collections, requestTarget);
+
+  return {
+    collectionLabel,
+    resolvedRequest,
+  };
+};
+
 const loadWorkspaceEnvironments = async (
   environmentId: string | undefined,
   runtime: Awaited<ReturnType<typeof resolveRuntime>>,
@@ -726,7 +1013,7 @@ export const runRequest = (
 export const registerRequestCommand = (program: Command) => {
   const requestCommand = program
     .command("request")
-    .description("Run a single saved Hoppscotch request");
+    .description("Inspect, run, and manage saved Hoppscotch requests");
 
   requestCommand
     .command("create")
@@ -934,6 +1221,76 @@ export const registerRequestCommand = (program: Command) => {
         throw e;
       }
     });
+
+  requestCommand
+    .command("show")
+    .alias("get")
+    .argument(
+      "<request_path_or_id>",
+      "request path, request id, or request name when unique"
+    )
+    .argument(
+      "[collection_file_path_or_id]",
+      "optional path to a hoppscotch collection.json file or collection ID from a workspace; falls back to config.collectionId when omitted, or use --collection-name with --team for workspace trees"
+    )
+    .option("--server <server_url>", "server URL for the GraphQL backend")
+    .option("--token <access_token>", "access token for the backend")
+    .option(
+      "--refresh-token <refresh_token>",
+      "refresh token for the GraphQL backend"
+    )
+    .option("--team <team_id>", "team id for resolving workspace collections")
+    .option(
+      "--collection-id <collection_id>, --collectionId <collection_id>",
+      "collection id/path to use"
+    )
+    .option(
+      "--collection-name <collection_name>, --collectionName <collection_name>",
+      "collection name to use when resolving workspace collections"
+    )
+    .description("Show the complete saved Hoppscotch request JSON")
+    .action(
+      async (
+        requestPathOrId: string,
+        collectionPathOrId: string | undefined,
+        options
+      ) => {
+        try {
+          const runtime = await resolveRuntime(options);
+          const selection = await resolveRawRequestSelection(
+            requestPathOrId,
+            collectionPathOrId ?? options.collectionId,
+            options,
+            runtime
+          );
+          const request = selection.resolvedRequest.request;
+
+          printJson({
+            ok: true,
+            collection: {
+              source: selection.collectionLabel,
+              name: selection.resolvedRequest.collection.name,
+              path: selection.resolvedRequest.collectionPath,
+            },
+            request: {
+              id: getRawRequestId(request),
+              name: getRawRequestName(request),
+              path: selection.resolvedRequest.path,
+              json: request,
+            },
+            errors: [],
+          });
+        } catch (e) {
+          if (isHoppCLIError(e)) {
+            handleError(e);
+            process.exit(1);
+            return;
+          }
+
+          throw e;
+        }
+      }
+    );
 
   requestCommand
     .command("update")
