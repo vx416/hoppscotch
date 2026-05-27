@@ -22,6 +22,7 @@ const quoteYaml = (value: string) => JSON.stringify(value);
 
 const buildWorkflowExample = () => `\`\`\`bash
 hopp init
+hopp version
 hopp config show
 hopp collection list --team team_123
 hopp request create "login" collection_123 --request ./request.json --team team_123
@@ -64,6 +65,7 @@ The generator writes the Hoppscotch CLI skill files into two agent-specific loca
 ## Quick Commands
 
 - \`hopp --help\` - show top-level help.
+- \`hopp version\` - print the CLI version and commit hash as JSON.
 - \`hopp init\` - interactively set local config keys.
 - \`hopp config show\` - print the stored config.
 - \`hopp config get <key>\` - read one config value.

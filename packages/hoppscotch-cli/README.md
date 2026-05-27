@@ -8,6 +8,7 @@ A CLI to run Hoppscotch Test Scripts in CI environments.
 - `hopp request show <request> [collection]`: print the complete saved request JSON without executing it
 - `hopp init`: interactively initialize local CLI config
 - `hopp config init`: same interactive config flow under the config group
+- `hopp version`: print the CLI version and commit hash as JSON
 - `hopp gen-skill`: generate the Hoppscotch CLI skill files under the current working directory's `.claude/hoppscotch-cli/` and `.codex/hoppscotch-cli/`
 
 ### **Usage:**
@@ -158,7 +159,19 @@ hopp [options or commands] arguments
     hopp request show "Get User" --collection-name "GraphQL Root" --team team_123
     ```
 
-5.  #### **`hopp init` / `hopp config init`**
+5.  #### **`hopp version`**
+
+    - Prints the CLI package version and commit hash as JSON.
+    - Uses common CI commit hash environment variables when available, then build-time commit metadata, then the current git checkout.
+
+      ```json
+      {
+        "version": "0.31.2",
+        "commitHash": "06a3037862e12d6b0210ed598367363b33c61ebb"
+      }
+      ```
+
+6.  #### **`hopp init` / `hopp config init`**
 
     - Prompts for local CLI config keys one by one.
     - Press `Enter` to keep the current value for a key.

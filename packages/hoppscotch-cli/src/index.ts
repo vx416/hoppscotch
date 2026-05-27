@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { execFileSync } from "node:child_process";
 import { Command } from "commander";
 import * as E from "fp-ts/Either";
 
@@ -16,6 +17,8 @@ import {
   runCliConfigInit,
 } from "./utils/config-init";
 
+declare const __HOPP_COMMIT_HASH__: string | undefined;
+
 const accent = chalk.greenBright;
 
 /**
@@ -32,6 +35,33 @@ const CLI_AFTER_ALL_TXT = `\nFor more help, head on to ${accent(
 )}`;
 
 const program = new Command();
+
+const getRuntimeCommitHash = () => {
+  const envHash =
+    process.env.HOPP_COMMIT_HASH ??
+    process.env.HOPPSCOTCH_CLI_COMMIT_HASH ??
+    process.env.GIT_COMMIT ??
+    process.env.COMMIT_SHA ??
+    process.env.VERCEL_GIT_COMMIT_SHA;
+
+  if (envHash?.trim()) return envHash.trim();
+
+  const buildHash =
+    typeof __HOPP_COMMIT_HASH__ === "string"
+      ? __HOPP_COMMIT_HASH__.trim()
+      : "";
+
+  if (buildHash) return buildHash;
+
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "unknown";
+  }
+};
 
 registerConfigCommand(program);
 registerCollectionCommand(program);
@@ -71,6 +101,22 @@ program
   .action(async () => {
     const { next } = await runCliConfigInit();
     console.log(JSON.stringify(formatCliConfigInitResult(next), null, 2));
+  });
+
+program
+  .command("version")
+  .description("Print the Hoppscotch CLI version and commit hash")
+  .action(() => {
+    console.log(
+      JSON.stringify(
+        {
+          version,
+          commitHash: getRuntimeCommitHash(),
+        },
+        null,
+        2
+      )
+    );
   });
 
 program
