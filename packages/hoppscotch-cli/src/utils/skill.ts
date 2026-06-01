@@ -93,9 +93,58 @@ The generator writes the Hoppscotch CLI skill files into two agent-specific loca
 - Iteration data from \`--iteration-data\` merges CSV rows into the environment on each iteration.
 - \`--legacy-sandbox\` disables the experimental scripting sandbox when a test script needs it.
 
-## Request Map Format
+## Hopp Test Usage
 
-Use a JSON array in a file or inline on the command line:
+\`hopp test\` is the collection and CI test runner. Use it when you need the Hoppscotch test lifecycle: load a collection export or workspace collection, optionally select one or more saved requests, execute pre-request scripts, send HTTP requests, run test scripts, and report results.
+
+Use \`hopp test\` for:
+
+- Running a whole collection export or workspace collection.
+- Running selected saved requests with repeated \`--request <request_target>\` flags. Repeated \`--request\` flags execute in the same order they appear on the command line.
+- Running the requests named in \`--request-map\`, even when no \`--request\` flag is provided.
+- Overriding saved request bodies for a test run with \`--request-map\`.
+- Loading environment values from a local file or workspace environment with \`--env\`.
+- Data-driven runs with \`--iteration-data <csv>\` and \`--iteration-count <count>\`.
+- Delayed execution with \`--delay <ms>\`.
+- Machine-readable response and test output with \`--json\`.
+- JUnit output for CI with \`--reporter-junit [path]\`.
+
+Use \`hopp request run\` instead when you only need to send one saved request and inspect its HTTP response. It is the single-request send workflow and does not provide collection-wide test reporting, request maps, iteration data, or JUnit output.
+
+Use \`hopp request show\` when you only need to inspect the exact saved request JSON without sending it.
+
+When \`--request\` and \`--request-map\` are used together, execution order is all explicit \`--request\` targets first, in flag order, followed by any additional request names from \`--request-map\` in map order. Duplicate request names keep the first occurrence.
+
+Flag reference:
+
+- \`<file_path_or_id>\` - local Hoppscotch collection export path or workspace collection id/name/path.
+- \`-e, --env <file_path_or_id>\` - local environment JSON file or workspace environment id.
+- \`-r, --request <request_target>\` - run only one saved request target; repeat the flag to run multiple targets in flag order.
+- \`--request-map <file_path_or_json>\` - JSON array or JSON file mapping \`request_name\` to \`request_body\`; also adds mapped request names to the selected run.
+- \`--json\` - print machine-readable JSON containing each executed request response, test result, errors, and summary.
+- \`-d, --delay <delay_in_ms>\` - wait this many milliseconds before each executed request.
+- \`--token <access_token>\` - override the configured workspace access token for this run.
+- \`--server <server_url>\` - override the configured Hoppscotch GraphQL backend/server URL for this run.
+- \`--reporter-junit [path]\` - write a JUnit XML report; when passed without a path, the default is \`hopp-junit-report.xml\`.
+- \`--iteration-count <no_of_iterations>\` - run the selected collection/request set this many times.
+- \`--iteration-data <file_path>\` - load CSV data and merge row values into the environment for data-driven runs.
+- \`--legacy-sandbox\` - disable the experimental scripting sandbox for compatibility with older scripts.
+
+Common \`hopp test\` examples:
+
+\`\`\`bash
+hopp test collection_123 --team team_123
+hopp test collection_123 --request login --request refresh-token
+hopp test "Admin API" --team team_123 --request login --json
+hopp test collection_123 --env env_123 --iteration-data ./users.csv --iteration-count 20
+hopp test collection_123 --reporter-junit hopp-junit-report.xml
+hopp test collection_123 --request-map ./request-map.json
+hopp test ./collection.json --env ./env.json
+\`\`\`
+
+### Request Map Format
+
+\`--request-map\` is a \`hopp test\` feature. Use a JSON array in a file or inline on the command line:
 
 \`\`\`json
 [
