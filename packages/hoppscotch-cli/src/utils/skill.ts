@@ -168,6 +168,127 @@ hopp test ./collection.json --env ./env.json
 - \`request_body\` can be a JSON object, array, or string.
 - When \`request_body\` is structured JSON, the CLI serializes it before sending the request.
 
+## Request Create JSON Format
+
+\`hopp request create <title> <collection> --request <json_or_path>\` expects a Hoppscotch REST request JSON object, not a wrapper object. Pass it inline as JSON or, preferably, save it as a file and pass the file path.
+
+The CLI normalizes the input with Hoppscotch's REST request schema. Missing fields are filled from the default REST request. If the request JSON has a blank or untitled \`name\`, the CLI uses the \`<title>\` argument as the request name.
+
+Minimal GET request:
+
+\`\`\`json
+{
+  "method": "GET",
+  "endpoint": "https://echo.hoppscotch.io/get"
+}
+\`\`\`
+
+Full JSON POST request:
+
+\`\`\`json
+{
+  "v": "15",
+  "name": "login",
+  "method": "POST",
+  "endpoint": "<<api_base_url>>/login",
+  "params": [
+    {
+      "key": "client",
+      "value": "web",
+      "active": true,
+      "description": ""
+    }
+  ],
+  "headers": [
+    {
+      "key": "Content-Type",
+      "value": "application/json",
+      "active": true,
+      "description": ""
+    }
+  ],
+  "body": {
+    "contentType": "application/json",
+    "body": "{\\n  \\"username\\": \\"alice\\",\\n  \\"password\\": \\"secret\\"\\n}"
+  },
+  "auth": {
+    "authType": "none",
+    "authActive": true
+  },
+  "preRequestScript": "",
+  "testScript": "pw.test(\\"Status code is 200\\", () => {\\n  pw.expect(pw.response.status).toBe(200);\\n});",
+  "requestVariables": [],
+  "responses": {},
+  "description": null
+}
+\`\`\`
+
+Create it from a file:
+
+\`\`\`bash
+hopp request create "login" "Auth/login" --request ./request.json --team team_123
+\`\`\`
+
+Rules:
+
+- Do not wrap the request as \`{ "request": { ... } }\`; the top-level JSON is the request itself.
+- For \`"contentType": "application/json"\`, \`body.body\` must be a JSON string, not a nested object.
+- Use \`<<env_or_collection_var>>\` placeholders in \`endpoint\`, \`params\`, \`headers\`, or \`body.body\` when values should resolve at run time.
+- Use \`"authType": "inherit"\` to inherit collection auth, or \`"authType": "none"\` to disable auth for this request.
+- Inspect the stored result with \`hopp request show <request> <collection>\` after creation.
+
+## Response Examples For Documentation
+
+Hoppscotch REST requests do not have first-class multiple request examples. For documentation-only examples, use saved response examples under the request's \`responses\` object. Each response example may include an \`originalRequest\` snapshot, which can show an alternate request body in the web UI.
+
+Use this only when the user explicitly wants documentation/display examples. Do not use response examples as a substitute for executable API tests.
+
+Shape:
+
+\`\`\`json
+{
+  "responses": {
+    "Query by room_name": {
+      "name": "Query by room_name",
+      "code": 200,
+      "status": "OK",
+      "headers": [
+        {
+          "key": "content-type",
+          "value": "application/json"
+        }
+      ],
+      "body": "{\\n  \\"error_code\\": 0\\n}",
+      "originalRequest": {
+        "v": "6",
+        "name": "Query Rooms",
+        "method": "POST",
+        "endpoint": "<<gameserver_domain>>/queryrooms",
+        "headers": [],
+        "params": [],
+        "body": {
+          "contentType": "application/json",
+          "body": "{\\n  \\"room_name\\": \\"HL1777\\"\\n}"
+        },
+        "auth": {
+          "authType": "none",
+          "authActive": true
+        },
+        "requestVariables": []
+      }
+    }
+  }
+}
+\`\`\`
+
+Rules:
+
+- Keep the saved request's main body as the canonical executable body.
+- Put alternate documentation bodies in \`responses.<example name>.originalRequest.body\`.
+- Example names should describe the scenario, e.g. \`Query by room_name\`.
+- \`hopp test\` does not execute response examples; use \`--request-map\` or separate requests for real test cases.
+- Preserve existing responses when updating a request; merge new examples instead of replacing them. Inspect the current request with \`hopp request show\` before updating, and verify the example exists with \`hopp request show\` after.
+
 ## Request Body Guidance
 
 - For saved requests, put the canonical body in the request JSON.

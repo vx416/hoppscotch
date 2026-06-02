@@ -17,6 +17,10 @@ describe("hoppscotch-cli skill generator", () => {
     expect(markdown).toContain("hopp gen-skill");
     expect(markdown).toContain("request-map");
     expect(markdown).toContain("Iteration data");
+    expect(markdown).toContain("Request Create JSON Format");
+    expect(markdown).toContain("body.body");
+    expect(markdown).toContain("Response Examples For Documentation");
+    expect(markdown).toContain("originalRequest");
     expect(markdown).toContain(".claude/hoppscotch-cli/SKILL.md");
   });
 

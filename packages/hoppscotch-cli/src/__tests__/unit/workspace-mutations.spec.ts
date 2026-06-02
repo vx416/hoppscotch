@@ -194,6 +194,149 @@ describe("workspace mutations", () => {
     vi.unstubAllGlobals();
   });
 
+  test("creates a team request with JSON body and response examples", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(
+        mockResponse(200, {
+          data: {
+            exportCollectionsToJSON: JSON.stringify([
+              {
+                id: "collection-1",
+                name: "apigate",
+                requests: [],
+                folders: [],
+              },
+            ]),
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        mockResponse(200, {
+          data: {
+            createRequestInCollection: {
+              id: "request-1",
+              title: "login",
+              collectionID: "collection-1",
+              teamID: "team-1",
+            },
+          },
+        })
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createTeamRequest(
+        {
+          serverUrl: "https://api.example.com/graphql",
+          token: "token",
+          refreshToken: "refresh-token",
+        },
+        {
+          teamID: "team-1",
+          collectionTarget: "apigate",
+          title: "login",
+          request: JSON.stringify({
+            v: "15",
+            name: "login",
+            method: "POST",
+            endpoint: "<<api_base_url>>/login",
+            headers: [
+              {
+                key: "Content-Type",
+                value: "application/json",
+                active: true,
+                description: "",
+              },
+            ],
+            params: [],
+            body: {
+              contentType: "application/json",
+              body: '{\n  "username": "alice",\n  "password": "secret"\n}',
+            },
+            auth: {
+              authType: "none",
+              authActive: true,
+            },
+            requestVariables: [],
+            responses: {
+              "Query by room_name": {
+                name: "Query by room_name",
+                code: 200,
+                status: "OK",
+                headers: [
+                  {
+                    key: "content-type",
+                    value: "application/json",
+                  },
+                ],
+                body: '{\n  "error_code": 0\n}',
+                originalRequest: {
+                  v: "6",
+                  name: "Query Rooms",
+                  method: "POST",
+                  endpoint: "<<gameserver_domain>>/queryrooms",
+                  headers: [],
+                  params: [],
+                  body: {
+                    contentType: "application/json",
+                    body: '{\n  "room_name": "HL1777"\n}',
+                  },
+                  auth: {
+                    authType: "none",
+                    authActive: true,
+                  },
+                  requestVariables: [],
+                },
+              },
+            },
+          }),
+        }
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        data: {
+          createRequestInCollection: {
+            id: "request-1",
+            title: "login",
+            collectionID: "collection-1",
+            teamID: "team-1",
+          },
+        },
+      })
+    );
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[1][1]?.body as string);
+    const createdRequest = JSON.parse(
+      requestBody.variables.data.request as string
+    );
+
+    expect(createdRequest).toMatchObject({
+      v: RESTReqSchemaVersion,
+      name: "login",
+      method: "POST",
+      endpoint: "<<api_base_url>>/login",
+      body: {
+        contentType: "application/json",
+        body: '{\n  "username": "alice",\n  "password": "secret"\n}',
+      },
+      responses: {
+        "Query by room_name": {
+          name: "Query by room_name",
+          originalRequest: {
+            method: "POST",
+            body: {
+              contentType: "application/json",
+              body: '{\n  "room_name": "HL1777"\n}',
+            },
+          },
+        },
+      },
+    });
+
+    vi.unstubAllGlobals();
+  });
+
   test("updates a team collection by id", async () => {
     const fetchMock = vi
       .fn()
